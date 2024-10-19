@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basit 2D Oyun</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('https://d.yeniduzen.com/news/108568.jpg');
+            background-size: cover;
+            border: 2px solid #000;
+        }
+
+        .character {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px; /* Karakter boyutunu ayarlayın */
+            height: auto;
+        }
+
+        .enemy {
+            position: absolute;
+            width: 60px; /* Düşman boyutunu ayarlayın */
+            height: auto;
+        }
+
+        .bullet {
+            position: absolute;
+            width: 10px; /* Mermi boyutunu ayarlayın */
+            height: auto;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+        }
+
+        button {
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            margin: 5px;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="gameCanvas">
+        <div class="controls">
+            <button id="leftBtn">←</button>
+            <button id="rightBtn">→</button>
+            <button id="upBtn">↑</button>
+            <button id="downBtn">↓</button>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const characterImg = 'https://upload.wikimedia.org/wikipedia/tr/8/83/Memati_Kurtlar_vadisi_pusu.jpg';
+        const enemyImg = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSXua5duGB_MRTcVcTbhuLYzg3yNZKDUMeCLA&s'; // Aykut Elmas resmi
+        const bulletImg = 'https://r.resimlink.com/tWDm20rB.png';
+
+        let enemies = [];
+        let bullets = [];
+        let score = 0;
+        let character;
+        let isMoving = {
+            left: false,
+            right: false,
+            up: false,
+            down: false,
+        };
+
+        // Karakter oluşturma
+        function createCharacter() {
+            character = document.createElement('div');
+            character.className = 'character';
+            character.style.position = 'absolute';
+            character.style.bottom = '20px'; // Başlangıç yüksekliği
+            character.style.left = '50%'; // Ortaya yerleştirme
+            character.style.transform = 'translateX(-50%)';
+            
+            const characterImage = document.createElement('img');
+            characterImage.src = characterImg;
+            characterImage.style.width = '100%'; // Memati'nin tüm alanı kaplaması
+            characterImage.style.height = 'auto';
+            
+            character.appendChild(characterImage);
+            canvas.appendChild(character);
+        }
+
+        // Düşman oluşturma
+        function createEnemy() {
+            const enemy = document.createElement('img');
+            enemy.src = enemyImg;
+            enemy.className = 'enemy';
+            enemy.style.top = Math.random() * (canvas.clientHeight - 100) + 'px';
+            enemy.style.left = '0px'; // Sol kenardan çıkacak
+            canvas.appendChild(enemy);
+            enemies.push(enemy);
+            shootBullet(enemy); // Düşman oluşturulunca mermi atışı yap
+        }
+
+        // Mermi oluşturma
+        function shootBullet(enemy) {
+            const x = parseFloat(enemy.style.left) + 20; // Düşmandan çıkacak
+            const y = parseFloat(enemy.style.top) + (enemy.offsetHeight / 2) - 5; // Düşmanın ortasından çıkması
+            const bullet = document.createElement('img');
+            bullet.src = bulletImg;
+            bullet.className = 'bullet';
+            bullet.style.position = 'absolute';
+            bullet.style.top = y + 'px';
+            bullet.style.left = x + 'px';
+            canvas.appendChild(bullet);
+            bullets.push(bullet);
+        }
+
+        // Mermileri hareket ettirme
+        function moveBullets() {
+            bullets.forEach((bullet, index) => {
+                const bulletLeft = parseFloat(bullet.style.left);
+                bullet.style.left = bulletLeft + 5 + 'px'; // Merminin sağa hareketi
+
+                // Mermi Memati ile çarpışıyorsa
+                if (isColliding(bullet, character)) {
+                    alert("Oyun bitti! Memati mermiden kaçamadı.");
+                    resetGame(); // Oyunu sıfırla
+                }
+
+                // Mermi canvas dışına çıkarsa kaldır
+                if (bulletLeft > canvas.clientWidth) {
+                    bullet.remove();
+                    bullets.splice(index, 1);
+                }
+            });
+        }
+
+        // Çarpışma kontrolü
+        function isColliding(bullet, character) {
+            const bulletRect = bullet.getBoundingClientRect();
+            const characterRect = character.getBoundingClientRect();
+            return !(bulletRect.right < characterRect.left || 
+                     bulletRect.left > characterRect.right || 
+                     bulletRect.bottom < characterRect.top || 
+                     bulletRect.top > characterRect.bottom);
+        }
+
+        // Karakteri hareket ettirme
+        function moveCharacter() {
+            const characterLeft = parseFloat(character.style.left);
+            const characterBottom = parseFloat(character.style.bottom);
+
+            if (isMoving.left && characterLeft > 0) character.style.left = (characterLeft - 5) + 'px'; // Sol
+            if (isMoving.right && characterLeft < (canvas.clientWidth - character.offsetWidth)) character.style.left = (characterLeft + 5) + 'px'; // Sağ
+            if (isMoving.up && characterBottom < (canvas.clientHeight - character.offsetHeight)) character.style.bottom = (characterBottom + 5) + 'px'; // Yukarı
+            if (isMoving.down && characterBottom > 0) character.style.bottom = (characterBottom - 5) + 'px'; // Aşağı
+        }
+
+        // Oyun döngüsü
+        function gameLoop() {
+            moveBullets();
+            moveCharacter();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Oyunu sıfırlama
+        function resetGame() {
+            // Tüm düşmanları ve mermileri kaldır
+            bullets.forEach(bullet => bullet.remove());
+            enemies.forEach(enemy => enemy.remove());
+            bullets = [];
+            enemies = [];
+            score = 0;
+
+            // Memati'yi kaldır
+            if (character) {
+                character.remove();
+            }
+            
+            alert("Oyun yeniden başlıyor!");
+            createCharacter();
+            setInterval(createEnemy, 2000); // Her 2 saniyede bir yeni düşman yarat
+            gameLoop();
+        }
+
+        // Ok tuşlarına basılı tutma işlevselliği
+        document.getElementById('leftBtn').addEventListener('mousedown', () => {
+            isMoving.left = true;
+        });
+        document.getElementById('leftBtn').addEventListener('mouseup', () => {
+            isMoving.left = false;
+        });
+
+        document.getElementById('rightBtn').addEventListener('mousedown', () => {
+            isMoving.right = true;
+        });
+        document.getElementById('rightBtn').addEventListener('mouseup', () => {
+            isMoving.right = false;
+        });
+
+        document.getElementById('upBtn').addEventListener('mousedown', () => {
+            isMoving.up = true;
+        });
+        document.getElementById('upBtn').addEventListener('mouseup', () => {
+            isMoving.up = false;
+        });
+
+        document.getElementById('downBtn').addEventListener('mousedown', () => {
+            isMoving.down = true;
+        });
+        document.getElementById('downBtn').addEventListener('mouseup', () => {
+            isMoving.down = false;
+        });
+
+        // Düşmanları belirli aralıklarla oluşturma
+        setInterval(createEnemy, 2000); // Her 2 saniyede bir yeni düşman yarat
+        createCharacter();
+        gameLoop();
+
+    </script>
+</body>
+</html>
